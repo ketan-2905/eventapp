@@ -1,0 +1,299 @@
+// ========= DATABASE =========
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========= USER MODEL =========
+model User {
+  id            String    @id @default(uuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  password      String?
+  phoneno       String?
+
+  role             UserRole   @default(STUDENT)
+  status           UserStatus @default(ACTIVE)
+  profileCompleted Boolean    @default(false)
+
+  // Student-specific fields
+
+  branchId   String?
+  studentId  String?
+  rollNumber String?
+  year       Int?
+  section    String?
+
+  // Relations
+  accounts        Account[]
+  sessions        Session[]
+  clubs           ClubMember[]
+  createdClubs    Club[]         @relation("ClubCreator")
+  organizedEvents Event[]        @relation("EventOrganizer")
+  registrations   Registration[]
+  payments        Payment[]
+
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([email])
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  STUDENT
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+// ========= AUTH MODELS =========
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  id_token          String?
+  scope             String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ========= BRANCH MODELS =========
+
+model Branch {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+
+  @@index([name])
+}
+
+// ========= CLUB MODELS =========
+model Club {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  BannerUrl   String?
+  updatedAt   DateTime @updatedAt
+
+  createdById String
+  createdBy   User   @relation("ClubCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  members ClubMember[]
+  events  Event[]
+}
+
+model ClubMember {
+  id       String   @id @default(uuid())
+  clubId   String
+  userId   String
+  role     ClubRole @default(MEMBER)
+  joinedAt DateTime @default(now())
+
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([clubId, userId])
+  @@index([userId])
+}
+
+enum ClubRole {
+  MEMBER
+  CORE
+  CHAIR
+}
+
+// ========= EVENT MODELS =========
+model Event {
+  id          String        @id @default(uuid())
+  title       String
+  description String
+  category    EventCategory
+  status      EventStatus   @default(DRAFT)
+
+  // Event details
+  eventWebUrl        String?
+  attchments         Attchment[]
+  qnas               Qna[]
+  termsAndConditions TermsAndCondition?
+  timeLines          TimeLine[]
+
+  clubId      String?
+  createdById String
+  venue       String?
+  startAt     DateTime
+  endAt       DateTime
+
+  // Registration & capacity
+  capacity             Int?
+  registrationOpensAt  DateTime?
+  registrationClosesAt DateTime?
+
+  // Pricing
+  isPaid Boolean @default(false)
+  price  Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  club          Club?          @relation(fields: [clubId], references: [id], onDelete: SetNull)
+  createdBy     User           @relation("EventOrganizer", fields: [createdById], references: [id], onDelete: Restrict)
+  registrations Registration[]
+  Payment       Payment[]
+}
+
+model Qna {
+  id        String   @id @default(uuid())
+  eventId   String
+  question  String
+  answer    String
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
+
+model TermsAndCondition {
+  id        String   @id @default(uuid())
+  eventId   String   @unique
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model TimeLine {
+  id        String    @id @default(uuid())
+  eventId   String
+  title     String
+  details   String?
+  startTime DateTime? // optional, in case not everything has exact time
+  endTime   DateTime? // optional, in case not everything has exact time
+  order     Int // explicit order/priority for sorting
+  createdAt DateTime  @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([order])
+}
+
+model Attchment {
+  id        String         @id @default(uuid())
+  eventId   String
+  url       String
+  type      AttachmentType
+  createdAt DateTime       @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
+
+enum AttachmentType {
+  IMAGE
+  VIDEO
+  BROCHURE
+  BANNER
+}
+
+enum EventCategory {
+  TECHNICAL
+  CULTURAL
+  SPORTS
+  WORKSHOP
+  SEMINAR
+  FEST
+  OTHER
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+}
+
+// ========= REGISTRATION =========
+model Registration {
+  id        String             @id @default(uuid())
+  eventId   String
+  userId    String
+  status    RegistrationStatus @default(PENDING)
+  createdAt DateTime           @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+}
+
+enum RegistrationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  ATTENDED
+}
+
+// ========= PAYMENTS =========
+model Payment {
+  id        String        @id @default(uuid())
+  userId    String
+  eventId   String
+  amount    Float
+  status    PaymentStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([eventId])
+  @@index([status])
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}

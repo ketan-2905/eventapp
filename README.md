@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# College Event App
 
-## Getting Started
+A UI-only implementation of a College Event App's initial flow, built with React, Next.js, and Tailwind CSS.
 
-First, run the development server:
+## Mock Data
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+The ParentServer component simulates server-side data fetching with three mock users:
+
+1. **Student with incomplete profile**
+   - ID: `u-student-001`
+   - Name: Asha Rao
+   - Role: STUDENT
+   - Profile Status: Incomplete
+
+2. **Admin with incomplete profile**
+   - ID: `u-admin-001`
+   - Name: Ravi Menon
+   - Role: ADMIN
+   - Profile Status: Incomplete
+
+3. **Student with completed profile**
+   - ID: `u-student-002`
+   - Name: Neha Patel
+   - Role: STUDENT
+   - Profile Status: Complete
+
+## How to Test Different User Flows
+
+To test different user flows, modify the `userId` parameter in the ParentServer component:
+
+```tsx
+// In your page.tsx or wherever you're using ParentServer
+import ParentServer from './components/ParentServer';
+
+export default function Home() {
+  return (
+    <ParentServer userId="u-student-001" />
+  );
+}
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Change the userId to one of the following:
+- `u-student-001`: Shows the student profile completion form
+- `u-admin-001`: Shows the admin profile completion form
+- `u-student-002`: Shows the main shell (already completed profile)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Simulated States
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The ParentServer component simulates the following states:
 
-## Learn More
+1. **Loading**: Shows a skeleton UI for 1.5 seconds
+2. **Error**: Has a 10% chance of showing an error with a retry button
+3. **Success**: Shows the appropriate component based on the user's profile status
 
-To learn more about Next.js, take a look at the following resources:
+## Component Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **ParentServer**: Server-side component that fetches mock data and renders child components
+- **ProfileCompletion**: Determines which form to show based on user role
+- **StudentForm**: Form for students to complete their profile
+- **AdminForm**: Form for admins to complete their profile
+- **MainShellStub**: Minimal app shell UI shown after profile completion
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Implementation Notes
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- This is a UI-only implementation with no backend or database logic
+- Form submissions are simulated with timeouts
+- The design follows the theme from the provided images
+- The app is responsive and accessible
