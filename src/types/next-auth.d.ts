@@ -1,18 +1,36 @@
-// types/next-auth.d.ts or types.d.ts
-import "next-auth"
+import NextAuth, { DefaultSession, DefaultUser } from "next-auth"
 
-declare module "next-auth" {
-  interface Session {
-    user?: {
-      id: string
-      email: string
-      name: string
-    }
-  }
-}
+import "next/server"
+import type { Session } from "next-auth"
 
 declare module "next/server" {
   interface NextRequest {
-    auth: Awaited<ReturnType<typeof import("@/auth").auth>>
+    auth?: Session | null
+  }
+}
+
+
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string
+      email: string
+      name?: string
+      role?: string
+      profileCompleted?: boolean
+    } & DefaultSession["user"]
+  }
+
+  interface User extends DefaultUser {
+    role?: string
+    profileCompleted?: boolean
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id: string
+    role?: string
+    profileCompleted?: boolean
   }
 }

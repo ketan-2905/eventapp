@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useEffect } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -14,6 +14,9 @@ import {
   EyeOff,
   Lock,
 } from "lucide-react";
+import axiosClient from "@/lib/axios";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 // TypeScript enums and interfaces
 enum UserRole {
@@ -22,7 +25,7 @@ enum UserRole {
 }
 
 interface Branch {
-  id: number;
+  id: string;
   name: string;
   code: string;
 }
@@ -40,7 +43,7 @@ const userProfileFormSchema = z
       .min(6, { message: "Password must be at least 6 characters" }),
     confirmpassword: z.string(),
     role: z.nativeEnum(UserRole),
-    branchId: z.number().nullable().optional(),
+    branchId: z.string().nullable().optional(),
     studentId: z.string().optional(),
     rollNumber: z.string().optional(),
     year: z.number().min(1).max(4).nullable().optional(),
@@ -97,12 +100,51 @@ type UserProfileFormData = z.infer<typeof userProfileFormSchema>;
 
 // Mock branches data
 const branches: Branch[] = [
-  { id: 1, name: "Computer Science Engineering", code: "CSE" },
-  { id: 2, name: "Information Technology", code: "IT" },
-  { id: 3, name: "Electronics & Communication", code: "ECE" },
-  { id: 4, name: "Mechanical Engineering", code: "ME" },
-  { id: 5, name: "Civil Engineering", code: "CE" },
-  { id: 6, name: "Electrical Engineering", code: "EE" },
+  {
+    id: "43027b57-2f42-4a13-8b29-bda953629295",
+    name: "Electronics and Telecommunication Engg",
+    code: "ENTC",
+  },
+  {
+    id: "f24b8f5f-423f-428f-8919-63f6031f51ee",
+    name: "Information Technology",
+    code: "IT",
+  },
+  {
+    id: "4862c605-694b-4cd6-be47-b5771fd7315c",
+    name: "Computer Engineering",
+    code: "CE",
+  },
+  {
+    id: "fc622a83-c5b6-4f8f-87d5-440694c96972",
+    name: "Mechanical Engineering",
+    code: "ME",
+  },
+  {
+    id: "dec310cb-e727-4106-b869-f7aa23122ca0",
+    name: "Computer Science and Engineering (Data Science)",
+    code: "CSE-DS",
+  },
+  {
+    id: "8921e0bb-1aff-4d2d-b3eb-0f065614f99c",
+    name: "Artificial Intelligence and Machine Learning",
+    code: "AIML",
+  },
+  {
+    id: "56135db1-74b8-4fc8-a716-cf9a756bfd3c",
+    name: "Artificial Intelligence (AI) and Data Science",
+    code: "AI-DS",
+  },
+  {
+    id: "bb0a9a71-2a71-47b7-b9a1-60ef5c883e0e",
+    name: "Computer Science and Engineering",
+    code: "CSE",
+  },
+  {
+    id: "b952ad2a-dd24-4879-9a96-565888fb5e69",
+    name: "IOT and Cyber Security with Block Chain Technology",
+    code: "CSE-IOT-CS-BC",
+  },
 ];
 
 const UserProfileForm: React.FC = () => {
@@ -118,10 +160,10 @@ const UserProfileForm: React.FC = () => {
       name: "",
       phoneno: "",
       role: UserRole.STUDENT,
-      branchId: null,
+      branchId: "",
       studentId: "",
       rollNumber: "",
-      year: null,
+      year: undefined,
       section: "",
     },
     mode: "onChange",
@@ -131,22 +173,46 @@ const UserProfileForm: React.FC = () => {
   const isStudent = selectedRole === UserRole.STUDENT;
 
   const [showPassword, setShowPassword] = React.useState(false);
-  const [confirmedShowPassword, setConfirmedShowPassword] = React.useState(false);
+  const [confirmedShowPassword, setConfirmedShowPassword] =
+    React.useState(false);
+
+  const router = useRouter();
+
+  const { data: session } = useSession();
+
+  useEffect(() => {
+  if (session?.user?.email) {
+    setValue("email", session.user.email);
+  }
+}, [session, setValue]);
+
 
   const onSubmit: SubmitHandler<UserProfileFormData> = async (data) => {
+    console.log("Signup data:", data);
+
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const payload = {
+        ...data,
+        email: session?.user?.email || "", // inject email here
+      };
 
-      console.log("Profile completed:", data);
-      alert("Profile completed successfully!");
+      const response = await axiosClient.post("/auth/register", payload);
 
-      // Here you would typically:
-      // 1. Send data to your API
-      // 2. Update profileCompleted to true
-      // 3. Redirect to dashboard
-    } catch (error) {
-      alert("Error updating profile. Please try again.");
+      if (response.status === 200) {
+        alert("Profile completed successfully!");
+        console.log("User registered:", response.data);
+
+        // Example redirect to dashboard after success
+        router.push("/campus/events");
+      } else {
+        alert(response.data.error || "Something went wrong.");
+      }
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      alert(
+        error.response?.data?.error ||
+          "Error updating profile. Please try again."
+      );
     }
   };
 
@@ -237,12 +303,10 @@ const UserProfileForm: React.FC = () => {
                       id="email"
                       type="email"
                       {...register("email")}
+                      disabled={true}
                       className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 text-gray-600 focus:border-transparent ${
                         errors.name ? "border-red-500" : "border-gray-300"
                       }`}
-                      placeholder="example@gmail.com"
-                      disabled={true}
-                      value={"user?.email"}
                     />
                   </div>
                   {errors.name && (
@@ -279,7 +343,7 @@ const UserProfileForm: React.FC = () => {
                     </button>
                   </div>
                 </div>
-                 <div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Confirm Password
                   </label>
@@ -296,7 +360,9 @@ const UserProfileForm: React.FC = () => {
                     />
                     <button
                       type="button"
-                      onClick={() => setConfirmedShowPassword(!confirmedShowPassword)}
+                      onClick={() =>
+                        setConfirmedShowPassword(!confirmedShowPassword)
+                      }
                       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     >
                       {confirmedShowPassword ? (
@@ -307,6 +373,11 @@ const UserProfileForm: React.FC = () => {
                     </button>
                   </div>
                 </div>
+                {errors.confirmpassword && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.confirmpassword.message}
+                  </p>
+                )}
               </div>
             </div>
           </section>
@@ -333,185 +404,172 @@ const UserProfileForm: React.FC = () => {
           </section>
 
           {/* Student-specific Fields */}
-          
-            <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                Academic Information
-              </h2>
-              <div className="space-y-6">
+
+          <section>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              Academic Information
+            </h2>
+            <div className="space-y-6">
+              <div>
+                <label
+                  htmlFor="branchId"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Branch *
+                </label>
+                <div className="relative">
+                  <GraduationCap className="absolute top-1/2 left-3 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <select
+                    id="branchId"
+                    {...register("branchId", {
+                      setValueAs: (v) => (v === "" ? null : v),
+                    })}
+                    className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 text-gray-600 focus:border-transparent ${
+                      errors.branchId ? "border-red-500" : "border-gray-300"
+                    }`}
+                  >
+                    <option value="">Select your branch</option>
+                    {branches.map((branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        ({branch.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {errors.branchId && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.branchId.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label
-                    htmlFor="branchId"
+                    htmlFor="studentId"
                     className="block text-sm font-medium text-gray-700 mb-2"
                   >
-                    Branch *
+                    Student ID *
                   </label>
                   <div className="relative">
-                    <GraduationCap className="absolute top-1/2 left-3 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <select
-                      id="branchId"
-                      {...register("branchId", {
-                        setValueAs: (v) => (v === "" ? null : parseInt(v)),
-                      })}
+                    <Hash className="absolute top-1/2 left-3 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      id="studentId"
+                      type="text"
+                      {...register("studentId")}
                       className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 text-gray-600 focus:border-transparent ${
-                        errors.branchId ? "border-red-500" : "border-gray-300"
+                        errors.studentId ? "border-red-500" : "border-gray-300"
                       }`}
-                    >
-                      <option value="">Select your branch</option>
-                      {branches.map((branch) => (
-                        <option key={branch.id} value={branch.id}>
-                          {branch.name} ({branch.code})
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Student ID"
+                    />
                   </div>
-                  {errors.branchId && (
+                  {errors.studentId && (
                     <p className="text-red-500 text-sm mt-1">
-                      {errors.branchId.message}
+                      {errors.studentId.message}
                     </p>
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label
-                      htmlFor="studentId"
-                      className="block text-sm font-medium text-gray-700 mb-2"
-                    >
-                      Student ID *
-                    </label>
-                    <div className="relative">
-                      <Hash className="absolute top-1/2 left-3 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input
-                        id="studentId"
-                        type="text"
-                        {...register("studentId")}
-                        className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 text-gray-600 focus:border-transparent ${
-                          errors.studentId
-                            ? "border-red-500"
-                            : "border-gray-300"
-                        }`}
-                        placeholder="Student ID"
-                      />
-                    </div>
-                    {errors.studentId && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {errors.studentId.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="rollNumber"
-                      className="block text-sm font-medium text-gray-700 mb-2"
-                    >
-                      Roll Number *
-                    </label>
-                    <input
-                      id="rollNumber"
-                      type="text"
-                      {...register("rollNumber")}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 text-gray-600 focus:border-transparent ${
-                        errors.rollNumber ? "border-red-500" : "border-gray-300"
-                      }`}
-                      placeholder="eg., D048"
-                    />
-                    {errors.rollNumber && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {errors.rollNumber.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="year"
-                      className="block text-sm font-medium text-gray-700 mb-2"
-                    >
-                      Year *
-                    </label>
-                    <div className="relative">
-                      <Calendar className="absolute top-1/2 left-3 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <select
-                        id="year"
-                        {...register("year", {
-                          setValueAs: (v) => (v === "" ? null : parseInt(v)),
-                        })}
-                        className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 text-gray-600 focus:border-transparent ${
-                          errors.year ? "border-red-500" : "border-gray-300"
-                        }`}
-                      >
-                        <option value="">Select year</option>
-                        <option value={1}>1st Year</option>
-                        <option value={2}>2nd Year</option>
-                        <option value={3}>3rd Year</option>
-                        <option value={4}>4th Year</option>
-                      </select>
-                    </div>
-                    {errors.year && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {errors.year.message}
-                      </p>
-                    )}
-                  </div>
+                <div>
+                  <label
+                    htmlFor="rollNumber"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    Roll Number *
+                  </label>
+                  <input
+                    id="rollNumber"
+                    type="text"
+                    {...register("rollNumber")}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 text-gray-600 focus:border-transparent ${
+                      errors.rollNumber ? "border-red-500" : "border-gray-300"
+                    }`}
+                    placeholder="eg., D048"
+                  />
+                  {errors.rollNumber && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.rollNumber.message}
+                    </p>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label
-                      htmlFor="section"
-                      className="block text-sm font-medium text-gray-700 mb-2"
+                <div>
+                  <label
+                    htmlFor="year"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    Year *
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute top-1/2 left-3 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <select
+                      id="year"
+                      {...register("year", {
+                        setValueAs: (v) => (v === "" ? null : parseInt(v)),
+                      })}
+                      className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 text-gray-600 focus:border-transparent ${
+                        errors.year ? "border-red-500" : "border-gray-300"
+                      }`}
                     >
-                      Section *
-                    </label>
-                    <div className="relative">
-                      <Users className="absolute top-1/2 left-3 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input
-                        id="section"
-                        type="text"
-                        {...register("section")}
-                        className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 text-gray-600 focus:border-transparent ${
-                          errors.section ? "border-red-500" : "border-gray-300"
-                        }`}
-                        placeholder="e.g., D1"
-                        maxLength={2}
-                      />
-                    </div>
-                    {errors.section && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {errors.section.message}
-                      </p>
-                    )}
+                      <option value={1}>1st Year</option>
+                      <option value={2}>2nd Year</option>
+                      <option value={3}>3rd Year</option>
+                      <option value={4}>4th Year</option>
+                    </select>
                   </div>
+                  {errors.year && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.year.message}
+                    </p>
+                  )}
                 </div>
               </div>
-            </section>
-          
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="section"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    Section *
+                  </label>
+                  <div className="relative">
+                    <Users className="absolute top-1/2 left-3 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      id="section"
+                      type="text"
+                      {...register("section")}
+                      className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 text-gray-600 focus:border-transparent ${
+                        errors.section ? "border-red-500" : "border-gray-300"
+                      }`}
+                      placeholder="e.g., D1"
+                      maxLength={2}
+                    />
+                  </div>
+                  {errors.section && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.section.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
 
           {/* Submit Section */}
           <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t">
-            <button
-              type="button"
-              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              disabled={isSubmitting}
-            >
-              Save as Draft
-            </button>
-
-            <button
+            <input
               type="submit"
-              disabled={isSubmitting}
               className={`flex-1 px-8 py-3 rounded-lg font-semibold transition-colors ${
                 isSubmitting
                   ? "bg-gray-400 text-gray-600 cursor-not-allowed"
                   : "bg-purple-600 text-gray-800 hover:bg-purple-700"
               }`}
-            >
-              {isSubmitting ? "Completing Profile..." : "Complete Profile"}
-            </button>
+              value={
+                isSubmitting ? "Completing Profile..." : "Complete Profile"
+              }
+            />
           </div>
-
         </form>
       </div>
     </div>

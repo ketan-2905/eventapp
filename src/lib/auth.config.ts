@@ -51,7 +51,6 @@
 //   ],
 // } satisfies NextAuthConfig;
 
-
 // auth.config.ts
 import type { NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
@@ -69,7 +68,7 @@ export default {
           scope: "openid email profile",
           prompt: "consent",
           access_type: "offline",
-          response_type: "code"
+          response_type: "code",
         },
       },
     }),
@@ -77,7 +76,7 @@ export default {
       name: "credentials",
       credentials: {
         identifier: { label: "Email", type: "text" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
         const identifier = credentials?.identifier;
@@ -117,7 +116,7 @@ export default {
       // If signing in with Google
       if (account?.provider === "google") {
         const { email } = user;
-        
+
         // Check if a user already exists with this email
         const existingUser = await prisma.user.findUnique({
           where: { email: email as string },
@@ -148,29 +147,35 @@ export default {
               },
             });
           }
-          
+
           // Update user object to use existing user ID
           user.id = existingUser.id;
         }
       }
-      
+
       return true;
     },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.role = user.role;
+        token.profileCompleted = user.profileCompleted;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
+        session.user.role = token.role as string | undefined;
+        session.user.profileCompleted = token.profileCompleted as
+          | boolean
+          | undefined;
       }
       return session;
     },
   },
   pages: {
-    signIn: '/auth/signin',
-    error: '/auth/error',
+    signIn: "/auth/signin",
+    error: "/auth/error",
   },
 } satisfies NextAuthConfig;
